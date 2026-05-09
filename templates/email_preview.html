@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Email Preview | SmartHostel AI{% endblock %}
+{% block content %}
+<section class="dashboard py-5">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+      <div>
+        <p class="eyebrow">Gmail Notification Preview</p>
+        <h1 class="h2">Room Allocation Confirmation</h1>
+      </div>
+      <span class="status-pill">QR Pass Generated</span>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-5 col-md-12">
+        <div class="data-panel">
+          <h2 class="h5">Digital QR Room Pass</h2>
+          <div class="qr-pass stacked">
+            <img src="{{ qr_data_uri }}" alt="QR pass for {{ allocation.student }}">
+            <div>
+              <span>{{ allocation.student }}</span>
+              <strong>{{ allocation.room_label }}</strong>
+              <p>{{ allocation.room_type }} | {{ allocation.pass_id }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+     <div class="col-lg-7 col-md-12">
+        <div class="data-panel email-panel">
+          <div class="email-line">
+            <span>To</span>
+            <strong>{{ email.to }}</strong>
+          </div>
+          <div class="email-line">
+            <span>Subject</span>
+            <strong>{{ email.subject }}</strong>
+          </div>
+          <pre>{{ email.body }}</pre>
+          <p class="muted-copy mb-0">
+            Demo mode: this preview shows the exact Gmail message. Real sending can be enabled later with Gmail SMTP and an app password stored in environment variables.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

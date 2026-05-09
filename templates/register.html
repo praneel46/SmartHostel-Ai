@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Register | SmartHostel AI{% endblock %}
+{% block content %}
+<section class="auth-wrapper">
+  <div class="auth-card glass-panel reveal">
+    <div class="text-center mb-4">
+      <h2 class="h3 fw-bold">Register</h2>
+      <p class="text-muted">Join the intelligent campus network</p>
+    </div>
+    <form method="post" id="register-form">
+      <div class="mb-3">
+        <label class="form-label text-muted fw-bold small">FULL NAME</label>
+        <input class="form-control" type="text" name="name" placeholder="Example: Praneel Kulkarni" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label text-muted fw-bold small">EMAIL ADDRESS</label>
+        <input class="form-control" type="email" name="email" placeholder="example@gmail.com" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label text-muted fw-bold small">PHONE / WHATSAPP NUMBER</label>
+        <input class="form-control" type="tel" name="phone" placeholder="+91 98765 43210" required>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label text-muted fw-bold small">DATE OF BIRTH</label>
+          <input class="form-control" type="date" name="dob" min="2000-01-01" max="2026-12-31" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label text-muted fw-bold small">GENDER</label>
+          <select class="form-select" name="gender" required>
+            <option value="">Select</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label text-muted fw-bold small">DEGREE</label>
+        <select class="form-select" name="degree" required>
+          <option value="">Select Degree</option>
+          <option value="Artificial Intelligence and Machine Learning">Artificial Intelligence and Machine Learning</option>
+          <option value="Civil Engineering">Civil Engineering</option>
+          <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+          <option value="Computer Science & Engineering (Data Science)">Computer Science & Engineering (Data Science)</option>
+          <option value="Electrical & Electronics Engineering">Electrical & Electronics Engineering</option>
+          <option value="Electronics & Communications Engineering">Electronics & Communications Engineering</option>
+          <option value="Information Science & Engineering">Information Science & Engineering</option>
+          <option value="Mechanical Engineering">Mechanical Engineering</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label text-muted fw-bold small">PASSWORD</label>
+        <input class="form-control" type="password" id="reg-password" name="password" placeholder="Create a secure password" minlength="6" required>
+      </div>
+      <div class="mb-4">
+        <label class="form-label text-muted fw-bold small">CONFIRM PASSWORD</label>
+        <input class="form-control" type="password" id="reg-confirm-password" name="confirm_password" placeholder="Confirm password" minlength="6" required>
+        <div class="invalid-feedback">Passwords do not match.</div>
+      </div>
+      
+      <div class="text-danger mt-2 d-none small mb-3" id="form-error">Please fill all required fields correctly.</div>
+      <button class="btn btn-premium btn-premium-primary w-100 mb-3" type="submit">Create Student Account</button>
+      <a class="btn btn-premium btn-premium-secondary w-100" href="{{ url_for('login') }}">Already Registered? Log In</a>
+    </form>
+  </div>
+</section>
+
+<script>
+document.getElementById('register-form').addEventListener('submit', function(e) {
+  const pwd = document.getElementById('reg-password').value;
+  const cpwd = document.getElementById('reg-confirm-password').value;
+  const err = document.getElementById('form-error');
+  
+  const uppercaseRegex = /[A-Z]/;
+  const specialRegex = /[!@#$%^&*(),.?":{}|<>]/;
+  
+  if (pwd !== cpwd) {
+    e.preventDefault();
+    document.getElementById('reg-confirm-password').classList.add('is-invalid');
+    err.textContent = "Passwords do not match.";
+    err.classList.remove('d-none');
+  } else if (pwd.length < 6 || !uppercaseRegex.test(pwd) || !specialRegex.test(pwd)) {
+    e.preventDefault();
+    document.getElementById('reg-password').classList.add('is-invalid');
+    err.textContent = "Password must be at least 6 characters, include 1 uppercase and 1 special character.";
+    err.classList.remove('d-none');
+  } else {
+    document.getElementById('reg-confirm-password').classList.remove('is-invalid');
+    document.getElementById('reg-password').classList.remove('is-invalid');
+    err.classList.add('d-none');
+  }
+});
+</script>
+{% endblock %}

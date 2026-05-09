@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Login | SmartHostel AI{% endblock %}
+{% block content %}
+<section class="auth-wrapper">
+  <div class="auth-card reveal">
+    <div class="text-center mb-4">
+      <h2 class="h3 fw-bold">Login</h2>
+      <p class="text-muted">Welcome back to <span class="brand-container"><span class="brand-text">SmartHostel</span><span class="brand-ai">AI</span></span></p>
+    </div>
+    <form method="post">
+      <div class="mb-3">
+        <label class="form-label text-muted fw-bold small">EMAIL ADDRESS</label>
+        <input class="form-control" type="email" name="email" placeholder="Enter your registered email" required>
+      </div>
+      <div class="mb-4">
+        <label class="form-label text-muted fw-bold small">PASSWORD</label>
+        <input class="form-control" type="password" name="password" placeholder="Enter your password" required>
+      </div>
+      <button class="btn btn-premium btn-premium-primary w-100 mb-3" type="submit">Authenticate</button>
+      <a class="btn btn-premium btn-premium-secondary w-100" href="{{ url_for('register') }}">Create Student Account</a>
+    </form>
+  </div>
+</section>
+{% endblock %}

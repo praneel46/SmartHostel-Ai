@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Notice Board | SmartHostel AI{% endblock %}
+{% block content %}
+<section class="dashboard py-5">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-5 reveal">
+      <div>
+        <p class="text-muted fw-bold text-uppercase small tracking-wide">Information Center</p>
+        <h1 class="h1 fw-bold" id="notice-title">Notice Board</h1>
+      </div>
+    </div>
+
+    <div class="row justify-content-center">
+      <div class="col-lg-8 reveal">
+        <div class="glass-panel p-5">
+          {% if notices %}
+            <div class="timeline mt-3">
+              {% for notice in notices %}
+                <div class="d-flex mb-4 border-bottom pb-4">
+                  <div class="me-4 text-muted small fw-bold" style="min-width: 100px;">{{ notice.date }}</div>
+                  <div>
+                    <h3 class="h5 fw-bold mb-2" style="color: var(--text);">{{ notice.title }}</h3>
+                    <p class="mb-0 text-muted">{{ notice.content }}</p>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <h2 class="h4 mb-3 fw-bold">No Notices</h2>
+              <p>There are currently no active broadcasts from the admin.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    if (typeof gsap !== 'undefined') {
+      gsap.utils.toArray('.reveal').forEach((elem, i) => {
+        gsap.set(elem, { visibility: "visible" });
+        gsap.fromTo(elem,
+          { y: 30, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.8, ease: "power3.out", delay: i * 0.15 }
+        );
+      });
+    }
+  });
+</script>
+{% endblock %}

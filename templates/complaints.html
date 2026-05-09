@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Complaints | SmartHostel AI{% endblock %}
+{% block content %}
+<section class="dashboard py-5">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-5 reveal">
+      <div>
+        <p class="text-muted fw-bold text-uppercase small tracking-wide">NLP Complaint Intelligence</p>
+        <h1 class="h1 fw-bold" id="complaint-title">Complaint Resolution Center</h1>
+      </div>
+      <span class="badge bg-primary px-3 py-2 rounded-pill shadow-sm">AI Priority Engine</span>
+    </div>
+
+    {% if session.get("role") == "admin" %}
+      <!-- Admin View: Premium Glass Cards -->
+      <div class="row g-4" id="complaints-grid">
+        {% for c in complaints %}
+          <div class="col-md-6 col-lg-4 complaint-card-wrapper">
+            <div class="glass-panel p-4 h-100 d-flex flex-column" style="border-left: 4px solid 
+              {% if c.priority == 'Critical' %}#7F1D1D
+              {% elif c.priority == 'High' %}#EF4444
+              {% elif c.priority == 'Medium' %}#F59E0B
+              {% else %}#10B981{% endif %};">
+              
+              <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                  <h3 class="h6 fw-bold mb-1">{{ c.student_name }}</h3>
+                  <p class="text-muted small mb-0">Room: {{ c.block }}{{ c.room_number if c.room_number else 'Unassigned' }}</p>
+                </div>
+                <span class="badge rounded-pill small fw-bold shadow-sm" style="background-color: 
+                  {% if c.priority == 'Critical' %}#7F1D1D
+                  {% elif c.priority == 'High' %}#EF4444
+                  {% elif c.priority == 'Medium' %}#F59E0B
+                  {% else %}#10B981{% endif %}; color: white;">
+                  {{ c.priority }} Priority
+                </span>
+              </div>
+              
+              <p class="text-dark small mb-4 flex-grow-1">"{{ c.text }}"</p>
+              
+              <div class="d-flex justify-content-between align-items-center mt-auto">
+                <span class="text-muted small"><i class="fw-bold">AI Category:</i> {{ c.category }}</span>
+                <span class="badge {% if c.status == 'Open' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                  {{ c.status }}
+                </span>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="col-12 text-center py-5">
+            <p class="text-muted">No complaints logged yet.</p>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <!-- Student View: Lodge Complaint -->
+      <div class="row justify-content-center mt-4">
+        <div class="col-lg-8 reveal" id="complaint-card">
+          <div class="glass-panel p-5">
+            <h2 class="h4 fw-bold mb-4">Lodge a New Complaint</h2>
+            <form method="post" action="{{ url_for('create_complaint') }}">
+              <div class="mb-4">
+                <label class="form-label text-muted fw-bold small">DESCRIBE YOUR ISSUE IN DETAIL</label>
+                <textarea class="form-control" name="complaint" rows="6" placeholder="E.g., The fan in my room is making a loud noise..." required style="resize: none;"></textarea>
+              </div>
+              <button type="submit" class="btn btn-premium btn-premium-primary w-100 py-3 fw-bold fs-5">Submit to AI Engine</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Student's previous complaints -->
+      {% if complaints %}
+      <div class="row justify-content-center mt-5">
+        <div class="col-lg-8 reveal">
+          <h3 class="h5 fw-bold mb-3">Your Recent Complaints</h3>
+          <div class="glass-panel p-4">
+            {% for c in complaints %}
+              <div class="d-flex justify-content-between border-bottom pb-3 mb-3">
+                <div>
+                  <p class="mb-1 text-dark small">{{ c.text }}</p>
+                  <span class="text-muted small">{{ c.category }}</span>
+                </div>
+                <div class="text-end">
+                  <span class="badge {% if c.status == 'Open' %}bg-warning text-dark{% else %}bg-success{% endif %} d-block mb-1">
+                    {{ c.status }}
+                  </span>
+                  <span class="text-muted small" style="font-size: 0.75rem;">{{ c.created_at }}</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
+  </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    if (typeof gsap !== 'undefined') {
+      // General Reveal
+      gsap.utils.toArray('.reveal').forEach((elem, i) => {
+        gsap.set(elem, { visibility: "visible" });
+        gsap.fromTo(elem,
+          { y: 30, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.8, ease: "power3.out", delay: i * 0.15 }
+        );
+      });
+
+      // Admin Grid Stagger Animation
+      const cards = gsap.utils.toArray('.complaint-card-wrapper');
+      if (cards.length > 0) {
+        gsap.fromTo(cards, 
+          { y: 40, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.8, stagger: 0.1, ease: "power3.out", delay: 0.2 }
+        );
+      }
+    }
+  });
+</script>
+{% endblock %}

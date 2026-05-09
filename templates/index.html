@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}SmartHostelAI | Modern Hostel Management{% endblock %}
+{% block content %}
+
+<!-- Hero Section -->
+<section class="hero d-flex align-items-center justify-content-center text-center">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-10 position-relative">
+        <div class="hero-glow"></div>
+        
+        <!-- Sequence 2: Reveal Title (Now Top) -->
+        <div class="mb-3">
+          <h2 class="hero-brand" id="hero-brand" style="visibility: hidden;">
+            <span class="brand-container"><span class="brand-text">SmartHostel</span><span class="brand-ai">AI</span></span>
+          </h2>
+        </div>
+
+        <!-- Sequence 1: Typing Animation Headline (Now Middle) -->
+        <h1 class="hero-headline" id="hero-headline">Revolutionizing hostel<br>management with smart automation</h1>
+        <!-- Hidden text to read from -->
+        <div class="d-none" id="hero-headline-text">Revolutionizing hostel management with smart automation</div>
+
+        <!-- Sequence 3: Reveal Buttons (Now Bottom) -->
+        <div class="d-flex flex-wrap justify-content-center mt-5 reveal-hidden" id="hero-buttons">
+          <a class="btn btn-premium btn-premium-primary" href="{{ url_for('login') }}">
+             Enter System
+          </a>
+          <a class="btn btn-premium btn-premium-secondary" href="#features">
+            Explore Modules
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- Features Section (Scroll Section 2) -->
+<section class="features-section" id="features">
+  <div class="container">
+    <h2 class="section-title reveal-hidden stagger-item">Built like a real smart-campus product</h2>
+    
+    <div class="row g-4 mt-2">
+      <div class="col-md-6 col-xl-3 reveal-hidden stagger-item delay-1">
+        <div class="feature-card">
+          <h3>AI Allocation</h3>
+          <p>Smart room allocation using rule-based logic and preference matching to assign the best available room instantly.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3 reveal-hidden stagger-item delay-2">
+        <div class="feature-card">
+          <h3>Cyber Shield</h3>
+          <p>Secure authentication, role-based access control, and comprehensive audit trails for peace of mind.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3 reveal-hidden stagger-item delay-1">
+        <div class="feature-card">
+          <h3>NLP Complaints</h3>
+          <p>Automated categorization and prioritization of student complaints using text intelligence.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3 reveal-hidden stagger-item delay-2">
+        <div class="feature-card">
+          <h3>Smart Finance</h3>
+          <p>Track fee status, view dues, and manage payments with full visibility for students and administration.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

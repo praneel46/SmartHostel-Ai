@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Fees | SmartHostel AI{% endblock %}
+{% block content %}
+<section class="dashboard py-5">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-5">
+      <div>
+        <p class="text-muted fw-bold text-uppercase small tracking-wide">Finance Automation</p>
+        <h1 class="h1 fw-bold" id="fees-title"></h1>
+      </div>
+      <span class="badge bg-primary px-3 py-2 rounded-pill shadow-sm">Receipt Generator Ready</span>
+    </div>
+
+    {% if session.get('role') == 'admin' %}
+      <div class="row g-4 mb-4">
+        <div class="col-md-4 reveal reveal-delay-1">
+          <div class="glass-panel p-4 text-center">
+            <span>Total Students</span>
+            <strong class="d-block display-5 text-primary fw-bold mt-2">{{ fee_records|length }}</strong>
+          </div>
+        </div>
+        <div class="col-md-4 reveal reveal-delay-2">
+          <div class="glass-panel p-4 text-center">
+            <span>Pending Accounts</span>
+            <strong class="d-block display-5 text-warning fw-bold mt-2">{{ fee_records|selectattr("due", "gt", 0)|list|length }}</strong>
+          </div>
+        </div>
+        <div class="col-md-4 reveal reveal-delay-3">
+          <div class="glass-panel p-4 text-center">
+            <span>Digital Receipts</span>
+            <strong class="d-block display-5 text-success fw-bold mt-2">PDF</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-panel p-4 reveal reveal-delay-4">
+        <div class="table-responsive">
+          <table class="table table-premium align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Room</th>
+                <th>Total Fee</th>
+                <th>Paid</th>
+                <th>Due</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for record in fee_records %}
+                <tr>
+                  <td><strong class="text-dark">{{ record.name }}</strong></td>
+                  <td>{{ record.room }}</td>
+                  <td>Rs {{ record.amount }}</td>
+                  <td class="text-success">Rs {{ record.paid }}</td>
+                  <td class="text-danger">Rs {{ record.due }}</td>
+                  <td><span class="badge {{ 'bg-success' if record.status == 'Paid' else 'bg-warning' }}">{{ record.status }}</span></td>
+                </tr>
+              {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No fee records found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% else %}
+      <div class="row justify-content-center mt-5">
+        <div class="col-lg-6 reveal" id="fees-card">
+          {% if fee_records %}
+            {% set record = fee_records[0] %}
+            <div class="glass-panel p-5 text-center">
+              <h2 class="h4 mb-4 fw-bold">Your Fee Status</h2>
+              <div class="d-flex justify-content-center align-items-center gap-5 mb-4">
+                
+                <!-- Circular Progress -->
+                <div class="position-relative" style="width: 150px; height: 150px;">
+                  <svg class="w-100 h-100" viewBox="0 0 100 100">
+                    <circle class="text-light" stroke-width="8" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" style="opacity: 0.2;" />
+                    <circle id="fee-progress-ring" stroke-width="8" stroke="#10B981" fill="transparent" r="40" cx="50" cy="50" style="stroke-dasharray: 251.2; stroke-dashoffset: 251.2; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 2s ease-out;" />
+                  </svg>
+                  <div class="position-absolute top-50 start-50 translate-middle text-center">
+                    <span class="fs-4 fw-bold text-dark counter" data-count="{{ ((record.paid / record.amount) * 100)|round|int if record.amount > 0 else 0 }}">0</span><span class="fs-6 text-muted">%</span>
+                  </div>
+                </div>
+
+                <div class="text-start">
+                  <div class="mb-3">
+                    <span class="text-muted small fw-bold">TOTAL FEE</span>
+                    <div class="fs-4 fw-bold text-dark d-flex align-items-center">Rs <span class="counter" data-count="{{ record.amount }}">0</span></div>
+                  </div>
+                  <div class="mb-3">
+                    <span class="text-muted small fw-bold">PAID</span>
+                    <div class="fs-4 fw-bold text-success d-flex align-items-center">Rs <span class="counter" data-count="{{ record.paid }}">0</span></div>
+                  </div>
+                  <div>
+                    <span class="text-muted small fw-bold">DUE</span>
+                    <div class="fs-4 fw-bold text-danger d-flex align-items-center">Rs <span class="counter" data-count="{{ record.due }}">0</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-4 pt-4 border-top">
+                <span class="text-muted small fw-bold">STATUS</span>
+                <div class="fs-4 mt-1"><span class="badge {{ 'bg-success' if record.status == 'Paid' else 'bg-warning text-dark' }} px-3 py-2">{{ record.status }}</span></div>
+              </div>
+            </div>
+          {% else %}
+            <div class="glass-panel p-5 text-center">
+              <h2 class="h4 mb-3 fw-bold">No Fee Data</h2>
+              <p class="text-muted">Fee records are currently unavailable for your account.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    if (typeof gsap !== 'undefined') {
+      gsap.to("#fees-title", {
+        duration: 1.5,
+        text: { value: "Fees Status", delimiter: " " },
+        ease: "power1.inOut"
+      });
+
+      // Number Counting Animation
+      const counters = document.querySelectorAll('.counter');
+      counters.forEach(counter => {
+        const target = +counter.getAttribute('data-count');
+        gsap.to(counter, {
+          innerHTML: target,
+          duration: 2,
+          ease: "power3.out",
+          snap: { innerHTML: 1 },
+          onUpdate: function() {
+            // Add commas for thousands if needed
+            counter.innerHTML = Math.round(this.targets()[0].innerHTML).toLocaleString('en-IN');
+          }
+        });
+      });
+
+      // Circular Progress Animation
+      const ring = document.getElementById('fee-progress-ring');
+      if (ring) {
+        const percentCounter = document.querySelector('.counter[data-count]');
+        const targetPercent = percentCounter ? +percentCounter.getAttribute('data-count') : 0;
+        const radius = ring.r.baseVal.value;
+        const circumference = radius * 2 * Math.PI;
+        const offset = circumference - (targetPercent / 100) * circumference;
+        
+        setTimeout(() => {
+          ring.style.strokeDashoffset = offset;
+        }, 300); // slight delay for cinematic effect
+      }
+    }
+  });
+</script>
+{% endblock %}

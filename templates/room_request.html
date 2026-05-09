@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Request Room | SmartHostel AI{% endblock %}
+{% block content %}
+<section class="py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+        <div class="data-panel glass-panel p-5 reveal scale-reveal">
+          <h2 class="h4 text-primary mb-4">Request a Hostel Room</h2>
+          
+          {% if has_pending_request %}
+            <div class="alert alert-info glass-alert d-flex align-items-center gap-3">
+              <div class="spinner-grow spinner-grow-sm text-info" role="status"></div>
+              <div>
+                <strong>Application Under Review</strong>
+                <p class="mb-0">You already have a pending room request. Waiting for admin approval.</p>
+              </div>
+            </div>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary mt-3">Back to Dashboard</a>
+          {% else %}
+            <div id="request-form-container">
+              <form id="room-request-form">
+                <div class="row g-4 mb-4">
+                  <div class="col-md-6">
+                    <label class="form-label">Preferred Room Type</label>
+                    <select class="form-select" id="room_type" required>
+                      <option value="Single">Single (1 Sharing)</option>
+                      <option value="2 Sharing">2 Sharing</option>
+                      <option value="3 Sharing">3 Sharing</option>
+                      <option value="4 Sharing">4 Sharing</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Preferred Floor</label>
+                    <select class="form-select" id="floor">
+                      <option value="">Any Floor</option>
+                      <option value="1">1st Floor</option>
+                      <option value="2">2nd Floor</option>
+                      <option value="3">3rd Floor</option>
+                      <option value="4">4th Floor</option>
+                    </select>
+                  </div>
+                </div>
+                <button class="btn btn-premium btn-premium-primary w-100 glow-btn" type="submit">Submit Request</button>
+              </form>
+            </div>
+            
+            <div id="request-success-msg" class="text-center d-none" style="padding: 2rem 0;">
+              <h3 class="text-success mb-3">Submitted Successfully</h3>
+              <p class="text-muted">Your request has been submitted. Waiting for admin approval.</p>
+              <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary mt-3">Return to Dashboard</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Include GSAP just in case it's not globally available at bottom -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById('room-request-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = "Submitting...";
+
+      try {
+        const response = await fetch('/api/request-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room_type: document.getElementById('room_type').value,
+            floor: document.getElementById('floor').value
+          })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          // Animate out the form
+          gsap.to("#request-form-container", {
+            opacity: 0, 
+            y: -20, 
+            duration: 0.5, 
+            onComplete: () => {
+              document.getElementById('request-form-container').classList.add('d-none');
+              const successMsg = document.getElementById('request-success-msg');
+              successMsg.classList.remove('d-none');
+              
+              // Animate in the success message
+              gsap.fromTo(successMsg, 
+                { opacity: 0, y: 30 }, 
+                { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }
+              );
+            }
+          });
+        } else {
+          alert("Error submitting request: " + data.message);
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = "Submit Request";
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to submit request.");
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = "Submit Request";
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

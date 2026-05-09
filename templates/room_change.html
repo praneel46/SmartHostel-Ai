@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Room Change Request' if allocation else 'Room Allocation Request' }} | SmartHostel AI{% endblock %}
+{% block content %}
+<section class="dashboard py-5">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-5 reveal">
+      <div>
+        <p class="text-muted fw-bold text-uppercase small tracking-wide">Student Services</p>
+        <h1 class="h1 fw-bold">{{ 'Room Change Request' if allocation else 'Room Allocation Request' }}</h1>
+        {% if allocation %}
+          <p class="text-muted mb-0">Current room: Block {{ allocation.block }}-{{ allocation.room_number }}, Floor {{ allocation.floor }}, {{ allocation.type }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row justify-content-center">
+      <div class="col-lg-6 reveal" id="form-container">
+        <div class="glass-panel p-5">
+          <form id="room-change-form" data-has-allocation="{{ 'true' if allocation else 'false' }}">
+            <div class="mb-4">
+              <label class="form-label text-muted fw-bold small">REQUESTED ROOM TYPE</label>
+              <select class="form-select" id="room_type" required>
+                <option value="">Select Room Type</option>
+                <option value="Single">Single (1 Sharing)</option>
+                <option value="2 Sharing">2 Sharing</option>
+                <option value="3 Sharing">3 Sharing</option>
+                <option value="4 Sharing">4 Sharing</option>
+              </select>
+            </div>
+            <div class="mb-4">
+              <label class="form-label text-muted fw-bold small">PREFERRED FLOOR (OPTIONAL)</label>
+              <select class="form-select" id="floor">
+                <option value="">Any Floor</option>
+                <option value="1">1st Floor</option>
+                <option value="2">2nd Floor</option>
+                <option value="3">3rd Floor</option>
+                <option value="4">4th Floor</option>
+              </select>
+            </div>
+            <div class="mb-4 {% if not allocation %}d-none{% endif %}" id="reason-group">
+              <label class="form-label text-muted fw-bold small">REASON FOR CHANGE</label>
+              <textarea class="form-control" id="reason" rows="4" placeholder="Briefly explain why you are requesting a room change..." {% if allocation %}required{% endif %}></textarea>
+            </div>
+            
+            <button class="btn btn-premium btn-premium-primary w-100" type="submit" id="submit-btn">
+              {{ 'Submit Room Change' if allocation else 'Submit Allocation Request' }}
+            </button>
+          </form>
+          
+          <div id="success-message" class="success-glow-message text-center d-none py-4">
+            <div class="success-orb mx-auto mb-3"></div>
+            <h3 class="h4 fw-bold">Request Submitted</h3>
+            <p class="text-muted mb-0">Your request has been submitted. Waiting for admin approval.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    if (typeof gsap !== 'undefined') {
+      gsap.utils.toArray('.reveal').forEach((elem, i) => {
+        gsap.set(elem, { visibility: "visible" });
+        gsap.fromTo(elem,
+          { y: 30, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.8, ease: "power3.out", delay: i * 0.15 }
+        );
+      });
+    }
+
+    const form = document.getElementById("room-change-form");
+    const successMsg = document.getElementById("success-message");
+    
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const roomType = document.getElementById("room_type").value;
+        const floor = document.getElementById("floor").value;
+        const hasAllocation = form.dataset.hasAllocation === "true";
+        const reason = document.getElementById("reason").value;
+        const endpoint = hasAllocation ? "{{ url_for('api_room_change') }}" : "{{ url_for('api_request_room') }}";
+        
+        try {
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ room_type: roomType, floor: floor, reason: reason })
+          });
+          const data = await res.json();
+          
+          if (data.success) {
+            const showSuccess = () => {
+              form.classList.add("d-none");
+              successMsg.classList.remove("d-none");
+              setTimeout(() => {
+                window.location.href = "{{ url_for('dashboard') }}";
+              }, 3000);
+            };
+
+            if (typeof gsap !== 'undefined') {
+              gsap.to(form, {
+                y: -20, opacity: 0, duration: 0.5, ease: "power2.in",
+                onComplete: () => {
+                  showSuccess();
+                  gsap.fromTo(successMsg,
+                    { y: 20, opacity: 0 },
+                    { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }
+                  );
+                }
+              });
+            } else {
+              showSuccess();
+            }
+          } else {
+            alert(data.message || "Unable to submit request.");
+          }
+        } catch (err) {
+          console.error("Error submitting request:", err);
+          alert("Something went wrong. Please try again.");
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

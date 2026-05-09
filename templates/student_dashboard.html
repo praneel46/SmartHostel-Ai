@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Student Dashboard | SmartHostel AI{% endblock %}
+{% block content %}
+<section class="dashboard py-5">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4 reveal">
+      <div>
+        <p class="text-muted fw-bold text-uppercase small tracking-wide">Student Portal</p>
+        <h1 class="h2 fw-bold">Welcome, {{ session.name }}</h1>
+      </div>
+    </div>
+
+    <div class="row justify-content-center mt-5">
+      <div class="col-lg-8 reveal">
+        <div class="glass-panel p-5 text-center">
+          {% if allocation %}
+            <h2 class="h4 mb-4 text-primary fw-bold">Room Allocation Active</h2>
+            <div class="d-flex flex-column align-items-center justify-content-center">
+              <div class="p-3 bg-white rounded shadow-sm mb-4">
+                <!-- STATIC QR Code -->
+                <img src="{{ qr_data_uri }}" alt="QR room pass" style="width: 180px; height: 180px;">
+              </div>
+              
+              <h3 class="h5 fw-bold mb-1">Pass ID: {{ allocation.pass_id }}</h3>
+              <p class="mb-2 fs-5">Room <strong class="text-primary">{{ allocation.block }}-{{ allocation.room_number }}</strong> ({{ allocation.type }})</p>
+              <p class="text-muted small">Allocated: {{ allocation.allocated_at }}</p>
+            </div>
+          {% else %}
+            <div class="py-4">
+              <h2 class="h4 mb-3 fw-bold">Allocation Pending</h2>
+              {% if pending_request %}
+                <p class="text-muted mb-4">Your {{ pending_request.request_type|lower }} request is waiting for admin approval.</p>
+                <span class="status-pill-glow">Request Under Review</span>
+              {% else %}
+                <p class="text-muted mb-4">You have not been assigned a room yet. Submit your preferred room type and floor to begin allocation.</p>
+                <a href="{{ url_for('room_change_page') }}" class="btn btn-premium btn-premium-primary">Request Room Allocation</a>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
