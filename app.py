@@ -32,7 +32,20 @@ load_local_env()
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "change-this-before-deployment"
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 DATABASE = "smarthostel.db"
+
+
+@app.context_processor
+def inject_asset_version():
+    return {"asset_version": os.getenv("RENDER_GIT_COMMIT", datetime.now().strftime("%Y%m%d%H%M"))}
+
+
+@app.after_request
+def add_no_cache_headers(response):
+    if request.endpoint == "static":
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return response
 
 def get_db():
     db = sqlite3.connect(DATABASE, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -363,12 +376,20 @@ def build_qr_attachment(allocation, user_name):
     }
 
 
+def get_resend_api_key():
+    return os.getenv("SMART_HOSTEL_RESEND_API_KEY") or os.getenv("RESEND_API_KEY")
+
+
+def is_resend_configured():
+    return bool(get_resend_api_key())
+
+
 def send_allocation_email(allocation, user_name, user_email):
-    api_key = os.getenv("SMART_HOSTEL_RESEND_API_KEY") or os.getenv("RESEND_API_KEY")
+    api_key = get_resend_api_key()
     sender = os.getenv("SMART_HOSTEL_MAIL_FROM", "SmartHostel AI <onboarding@resend.dev>")
 
     if not api_key:
-        return {"sent": False, "reason": "Resend API key not configured in environment"}
+        return {"sent": False, "provider": "resend", "reason": "Set RESEND_API_KEY in Render environment variables"}
 
     subject = "Room Allocation - SmartHostelAI"
     body = build_allocation_email_body(allocation, user_name)
@@ -427,15 +448,14 @@ def build_whatsapp_allocation_message(allocation, user_name):
 
 def send_whatsapp_message(student_email, phone, message):
     if not phone:
-        return {"sent": False, "provider": "mock", "reason": "Phone number not available"}
+        return {"sent": False, "provider": "twilio", "reason": "Phone number not available", "skipped": True}
 
     sid = os.getenv("SMART_HOSTEL_TWILIO_ACCOUNT_SID", "").strip()
     token = os.getenv("SMART_HOSTEL_TWILIO_AUTH_TOKEN", "").strip()
     sender = os.getenv("SMART_HOSTEL_TWILIO_WHATSAPP_FROM", "").strip()
 
     if not sid or not token or not sender:
-        log_notification(student_email, "WhatsApp", phone, message, "Mock queued", "mock")
-        return {"sent": True, "provider": "mock", "reason": "WhatsApp mock queued"}
+        return {"sent": False, "provider": "twilio", "reason": "WhatsApp not configured", "skipped": True}
 
     destination = phone if phone.startswith("whatsapp:") else f"whatsapp:{phone}"
     data = urllib.parse.urlencode({"From": sender, "To": destination, "Body": message}).encode()
@@ -629,7 +649,29 @@ def admin_dashboard():
         maintenance = sum(1 for r in rooms if r["status"] == "Maintenance")
         
         audit_logs = db.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 5").fetchall()
-        notification_logs = db.execute("SELECT * FROM notification_logs ORDER BY id DESC LIMIT 6").fetchall()
+        notification_filter = request.args.get("notification_filter", "All")
+        allowed_filters = {"All", "Email", "Failed", "Sent"}
+        if notification_filter not in allowed_filters:
+            notification_filter = "All"
+
+        notification_sql = "SELECT * FROM notification_logs WHERE NOT (channel = ? AND provider = ?)"
+        notification_params = ["WhatsApp", "mock"]
+        notification_conditions = []
+        notification_extra_params = []
+        if notification_filter == "Email":
+            notification_conditions.append("channel = ?")
+            notification_extra_params.append(notification_filter)
+        elif notification_filter == "Failed":
+            notification_conditions.append("status LIKE ?")
+            notification_extra_params.append("Failed%")
+        elif notification_filter == "Sent":
+            notification_conditions.append("(status LIKE ? OR status LIKE ?)")
+            notification_extra_params.extend(["Sent%", "Resent%"])
+        if notification_conditions:
+            notification_sql += " AND " + " AND ".join(notification_conditions)
+        notification_params.extend(notification_extra_params)
+        notification_sql += " ORDER BY id DESC LIMIT 8"
+        notification_logs = db.execute(notification_sql, notification_params).fetchall()
 
     return render_template(
         "admin_dashboard.html",
@@ -643,6 +685,8 @@ def admin_dashboard():
         complaints=open_complaints,
         audit_logs=audit_logs,
         notification_logs=notification_logs,
+        notification_filter=notification_filter,
+        mail_configured=is_resend_configured(),
         analytics={
             "occupancy_rate": occupancy_rate,
             "total_students": students_count,
@@ -652,16 +696,34 @@ def admin_dashboard():
     )
 
 
-@app.route("/student/qr-pass")
-@login_required("student")
-def download_qr_pass():
+def get_student_allocation(student_email):
     with get_db() as db:
-        allocation = db.execute("""
+        return db.execute("""
             SELECT a.*, r.block, r.floor, r.room_number, r.type
             FROM allocations a
             JOIN rooms r ON a.room_id = r.id
             WHERE a.student_email = ?
-        """, (session["user_email"],)).fetchone()
+        """, (student_email,)).fetchone()
+
+
+@app.route("/student/pass")
+@login_required("student")
+def room_pass_page():
+    allocation = get_student_allocation(session["user_email"])
+
+    if not allocation:
+        flash("No active room pass is available yet.", "warning")
+        return redirect(url_for("student_dashboard"))
+
+    alloc_dict = dict(allocation)
+    qr_data_uri = build_qr_data_uri(alloc_dict, session["name"])
+    return render_template("room_pass.html", allocation=allocation, qr_data_uri=qr_data_uri)
+
+
+@app.route("/student/qr-pass")
+@login_required("student")
+def download_qr_pass():
+    allocation = get_student_allocation(session["user_email"])
 
     if not allocation:
         flash("No active QR pass is available yet.", "warning")
@@ -677,12 +739,7 @@ def download_qr_pass():
 @login_required("student")
 def student_dashboard():
     with get_db() as db:
-        allocation = db.execute("""
-            SELECT a.*, r.block, r.floor, r.room_number, r.type 
-            FROM allocations a 
-            JOIN rooms r ON a.room_id = r.id 
-            WHERE a.student_email = ?
-        """, (session["user_email"],)).fetchone()
+        allocation = get_student_allocation(session["user_email"])
         pending_request = db.execute(
             "SELECT * FROM requests WHERE student_email = ? AND status = 'Pending'",
             (session["user_email"],)
@@ -788,6 +845,8 @@ def api_room_change():
         request_type = "Room Change" if allocation else "Allocation"
         if request_type == "Room Change" and not reason:
             return jsonify({"success": False, "message": "Please enter a reason for the room change."})
+        if request_type == "Room Change" and len(reason) < 12:
+            return jsonify({"success": False, "message": "Please write a clearer reason for the room change."})
 
         existing = db.execute("SELECT id FROM requests WHERE student_email = ? AND status = 'Pending'", (session["user_email"],)).fetchone()
         if existing:
@@ -914,14 +973,10 @@ def api_approve_request(req_id):
         whatsapp_message = build_whatsapp_allocation_message(allocation_dict, user["name"])
         whatsapp_status = send_whatsapp_message(req["student_email"], student["phone"], whatsapp_message)
         
-    if mail_status["sent"] and whatsapp_status["sent"]:
-        flash(f"Request approved! Email sent and WhatsApp {whatsapp_status['provider']} notification queued.", "success")
-    elif mail_status["sent"]:
-        flash(f"Request approved! Email sent, but WhatsApp failed: {whatsapp_status['reason']}", "warning")
-    elif whatsapp_status["sent"]:
-        flash(f"Request approved! WhatsApp {whatsapp_status['provider']} notification queued, but email failed: {mail_status['reason']}", "warning")
+    if mail_status["sent"]:
+        flash("Request approved! Allocation email sent with a fresh QR pass.", "success")
     else:
-        flash(f"Request approved, but email failed: {mail_status['reason']} and WhatsApp failed: {whatsapp_status['reason']}", "warning")
+        flash(f"Request approved, but email was not sent: {mail_status['reason']}", "warning")
         
     return redirect(url_for("admin_dashboard"))
 

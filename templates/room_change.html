@@ -14,35 +14,47 @@
     </div>
 
     <div class="row justify-content-center">
-      <div class="col-lg-6 reveal" id="form-container">
+      <div class="col-lg-8 reveal" id="form-container">
         <div class="glass-panel p-5">
           <form id="room-change-form" data-has-allocation="{{ 'true' if allocation else 'false' }}">
-            <div class="mb-4">
-              <label class="form-label text-muted fw-bold small">REQUESTED ROOM TYPE</label>
-              <select class="form-select" id="room_type" required>
-                <option value="">Select Room Type</option>
-                <option value="Single">Single (1 Sharing)</option>
-                <option value="2 Sharing">2 Sharing</option>
-                <option value="3 Sharing">3 Sharing</option>
-                <option value="4 Sharing">4 Sharing</option>
-              </select>
+            <div class="request-grid">
+              <div class="request-field-card">
+                <label class="form-label text-muted fw-bold small">REQUESTED ROOM TYPE</label>
+                <select class="form-select" id="room_type" required>
+                  <option value="">Select Room Type</option>
+                  <option value="Single">Single (1 Sharing)</option>
+                  <option value="2 Sharing">2 Sharing</option>
+                  <option value="3 Sharing">3 Sharing</option>
+                  <option value="4 Sharing">4 Sharing</option>
+                </select>
+              </div>
+              <div class="request-field-card">
+                <label class="form-label text-muted fw-bold small">PREFERRED FLOOR</label>
+                <select class="form-select" id="floor">
+                  <option value="">Any Floor</option>
+                  <option value="1">1st Floor</option>
+                  <option value="2">2nd Floor</option>
+                  <option value="3">3rd Floor</option>
+                  <option value="4">4th Floor</option>
+                </select>
+              </div>
             </div>
-            <div class="mb-4">
-              <label class="form-label text-muted fw-bold small">PREFERRED FLOOR (OPTIONAL)</label>
-              <select class="form-select" id="floor">
-                <option value="">Any Floor</option>
-                <option value="1">1st Floor</option>
-                <option value="2">2nd Floor</option>
-                <option value="3">3rd Floor</option>
-                <option value="4">4th Floor</option>
-              </select>
-            </div>
-            <div class="mb-4 {% if not allocation %}d-none{% endif %}" id="reason-group">
-              <label class="form-label text-muted fw-bold small">REASON FOR CHANGE</label>
-              <textarea class="form-control" id="reason" rows="4" placeholder="Briefly explain why you are requesting a room change..." {% if allocation %}required{% endif %}></textarea>
+
+            <div class="reason-card mt-4 {% if not allocation %}d-none{% endif %}" id="reason-group">
+              <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+                <div>
+                  <label class="form-label text-muted fw-bold small mb-1">REASON FOR ROOM CHANGE</label>
+                  <p class="text-muted mb-0 small">Write a clear reason so the admin can review your request faster.</p>
+                </div>
+                <span class="status-pill-glow reason-required">Required</span>
+              </div>
+              <textarea class="form-control" id="reason" rows="5" maxlength="400" placeholder="Example: Current room is too noisy during study hours, so I prefer a quieter floor." {% if allocation %}required{% endif %}></textarea>
+              <div class="d-flex justify-content-end mt-2">
+                <small class="text-muted"><span id="reason-count">0</span>/400</small>
+              </div>
             </div>
             
-            <button class="btn btn-premium btn-premium-primary w-100" type="submit" id="submit-btn">
+            <button class="btn btn-premium btn-premium-primary w-100 mt-4" type="submit" id="submit-btn">
               {{ 'Submit Room Change' if allocation else 'Submit Allocation Request' }}
             </button>
           </form>
@@ -72,6 +84,13 @@
 
     const form = document.getElementById("room-change-form");
     const successMsg = document.getElementById("success-message");
+    const reasonInput = document.getElementById("reason");
+    const reasonCount = document.getElementById("reason-count");
+    if (reasonInput && reasonCount) {
+      reasonInput.addEventListener("input", () => {
+        reasonCount.textContent = reasonInput.value.length;
+      });
+    }
     
     if (form) {
       form.addEventListener("submit", async (e) => {
@@ -80,8 +99,14 @@
         const roomType = document.getElementById("room_type").value;
         const floor = document.getElementById("floor").value;
         const hasAllocation = form.dataset.hasAllocation === "true";
-        const reason = document.getElementById("reason").value;
+        const reason = reasonInput ? reasonInput.value.trim() : "";
         const endpoint = hasAllocation ? "{{ url_for('api_room_change') }}" : "{{ url_for('api_request_room') }}";
+
+        if (hasAllocation && reason.length < 12) {
+          alert("Please write a slightly clearer reason for the room change.");
+          if (reasonInput) reasonInput.focus();
+          return;
+        }
         
         try {
           const res = await fetch(endpoint, {

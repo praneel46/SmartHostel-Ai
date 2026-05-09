@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}SmartHostel AI{% endblock %}</title>
     <link rel="icon" href="data:,">
-    <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="{{ url_for('static', filename='vendor/gsap/gsap.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='vendor/gsap/ScrollTrigger.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='vendor/gsap/TextPlugin.min.js') }}"></script>
+    <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css', v=asset_version) }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=asset_version) }}">
+    <script src="{{ url_for('static', filename='vendor/gsap/gsap.min.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='vendor/gsap/ScrollTrigger.min.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='vendor/gsap/TextPlugin.min.js', v=asset_version) }}"></script>
     <script>
       (function() {
         var theme = localStorage.getItem('theme') || 'light';
@@ -47,6 +47,7 @@
                 <div class="nav-item dropdown">
                   <a class="nav-link dropdown-toggle {% if request.endpoint in ['notice_board_page', 'room_change_page', 'complaints_page', 'fees_page'] %}active{% endif %}" href="#" data-bs-toggle="dropdown">Services</a>
                   <div class="dropdown-menu">
+                    <a class="dropdown-item {% if request.endpoint == 'room_pass_page' %}active{% endif %}" href="{{ url_for('room_pass_page') }}">Room Pass</a>
                     <a class="dropdown-item {% if request.endpoint == 'notice_board_page' %}active{% endif %}" href="{{ url_for('notice_board_page') }}">Notice Board</a>
                     <a class="dropdown-item {% if request.endpoint == 'room_change_page' %}active{% endif %}" href="{{ url_for('room_change_page') }}">Room Change Request</a>
                     <a class="dropdown-item {% if request.endpoint == 'complaints_page' %}active{% endif %}" href="{{ url_for('complaints_page') }}">Complaints</a>
@@ -126,7 +127,7 @@
     <div class="vignette-overlay"></div>
     <div class="bg-dimmer" id="bg-dimmer"></div>
 
-    <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js', v=asset_version) }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js', v=asset_version) }}"></script>
   </body>
 </html>

@@ -20,9 +20,12 @@ After an admin approves the request, the allocation confirmation goes to `studen
 
 ```text
 SMART_HOSTEL_MAIL_ENABLED=true
+RESEND_API_KEY=your-resend-api-key
 SMART_HOSTEL_RESEND_API_KEY=your-resend-api-key
 SMART_HOSTEL_MAIL_FROM=SmartHostel AI <onboarding@resend.dev>
 ```
+
+On Render, add `RESEND_API_KEY` in **Environment** settings. The local `.env` file is not uploaded to Render.
 
 For production, replace `onboarding@resend.dev` with an address on your verified Resend domain.
 

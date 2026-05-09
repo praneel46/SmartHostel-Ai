@@ -57,22 +57,19 @@ function initAnimations() {
     const textDiv = document.getElementById('hero-headline-text');
     if(headline && textDiv) {
       const fullText = textDiv.innerText.trim();
-      const words = fullText.split(/\s+/);
       headline.innerHTML = '<span id="typed-words"></span><span class="typing-cursor"></span>';
       const typedWords = document.getElementById('typed-words');
       gsap.set(headline, { visibility: "visible", opacity: 1 });
-      let wordIndex = 0;
-      const typeNextWord = () => {
-        wordIndex += 1;
-        const firstLine = words.slice(0, Math.min(wordIndex, 3)).join(' ');
-        const secondLine = wordIndex > 3 ? words.slice(3, wordIndex).join(' ') : '';
-        typedWords.innerHTML = secondLine ? `${firstLine}<br>${secondLine}` : firstLine;
-        if (wordIndex < words.length) {
-          setTimeout(typeNextWord, 230);
+      let charIndex = 0;
+      const typeNextChar = () => {
+        charIndex += 1;
+        typedWords.textContent = fullText.slice(0, charIndex);
+        if (charIndex < fullText.length) {
+          setTimeout(typeNextChar, 34);
         }
       };
-      typedWords.innerHTML = '';
-      setTimeout(typeNextWord, 180);
+      typedWords.textContent = '';
+      setTimeout(typeNextChar, 220);
       
       tl.to(headline, {
         duration: 0.2,
@@ -97,8 +94,8 @@ function initAnimations() {
   // Title Fade-In (Label Second)
   if (document.getElementById('hero-brand')) {
     tl.fromTo("#hero-brand", 
-      { y: 15, opacity: 0, scale: 0.95, visibility: "hidden" },
-      { y: 0, opacity: 1, scale: 1, visibility: "visible", duration: 0.4, ease: "power2.out" },
+      { y: 26, opacity: 0, scale: 0.97, visibility: "visible" },
+      { y: 0, opacity: 1, scale: 1, visibility: "visible", duration: 0.65, ease: "power3.out" },
       "-=1.5" // Start during the glow pulse
     );
   }

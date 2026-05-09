@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Room Pass | SmartHostel AI{% endblock %}
+{% block content %}
+<section class="dashboard py-5">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4 no-print">
+      <div>
+        <p class="text-muted fw-bold text-uppercase small tracking-wide">Digital Room Pass</p>
+        <h1 class="h2 fw-bold">SmartHostelAI Pass</h1>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-premium btn-premium-secondary" type="button" onclick="window.print()">Print Pass</button>
+        <a class="btn btn-premium btn-premium-primary" href="{{ url_for('download_qr_pass') }}">Download QR</a>
+      </div>
+    </div>
+
+    <div class="room-pass-shell">
+      <div class="room-pass-card">
+        <div class="room-pass-header">
+          <div>
+            <span>SmartHostelAI</span>
+            <h2>Room Access Pass</h2>
+          </div>
+          <strong>{{ allocation.pass_id }}</strong>
+        </div>
+
+        <div class="room-pass-body">
+          <div class="room-pass-qr">
+            <img src="{{ qr_data_uri }}" alt="QR pass for {{ session.name }}">
+          </div>
+          <div class="room-pass-details">
+            <span>Student</span>
+            <strong>{{ session.name }}</strong>
+
+            <span>Room</span>
+            <strong>Block {{ allocation.block }}, Room {{ allocation.room_number }}</strong>
+
+            <span>Room Type</span>
+            <strong>{{ allocation.type }}</strong>
+
+            <span>Floor</span>
+            <strong>{{ allocation.floor }}</strong>
+
+            <span>Allocated At</span>
+            <strong>{{ allocation.allocated_at }}</strong>
+          </div>
+        </div>
+
+        <div class="room-pass-footer">
+          <span>Show this QR pass at hostel entry or office verification.</span>
+          <span>{{ session.user_email }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
