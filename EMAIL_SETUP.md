@@ -1,31 +1,29 @@
-# SmartHostel AI Gmail Setup
+# SmartHostel AI Resend Setup
 
 The app sends mail like this:
 
-From: SmartHostel AI sender Gmail
+From: SmartHostel AI via Resend
 To: the student email used during registration
 
 Example:
 
 Student registers with `student123@gmail.com`.
-After clicking **Generate Match and Send Mail**, the confirmation goes to `student123@gmail.com`.
+After an admin approves the request, the allocation confirmation goes to `student123@gmail.com`.
 
 ## One-Time Setup
 
-1. Create a dedicated Gmail account for the project, for example:
-   `smarthostelai.project@gmail.com`
-2. Turn on 2-Step Verification for that Gmail account.
-3. Create a Gmail App Password.
+1. Create or open a Resend account.
+2. Create a Resend API key.
+3. Verify your sending domain in Resend, or use Resend's test sender while developing.
 4. Open `.env`.
 5. Set:
 
 ```text
 SMART_HOSTEL_MAIL_ENABLED=true
-SMART_HOSTEL_MAIL_USERNAME=smarthostelai.project@gmail.com
-SMART_HOSTEL_MAIL_PASSWORD=your-16-character-app-password
-SMART_HOSTEL_MAIL_FROM=SmartHostel AI <smarthostelai.project@gmail.com>
+SMART_HOSTEL_RESEND_API_KEY=your-resend-api-key
+SMART_HOSTEL_MAIL_FROM=SmartHostel AI <onboarding@resend.dev>
 ```
 
-Do not use your normal Gmail password. Use only the Gmail App Password.
+For production, replace `onboarding@resend.dev` with an address on your verified Resend domain.
 
 After changing `.env`, restart the Flask server.

@@ -1,15 +1,14 @@
 import base64
 from datetime import datetime
-from email.message import EmailMessage
 from functools import wraps
 from io import BytesIO
 import os
-import smtplib
 import sqlite3
 import urllib.parse
 import urllib.request
 
 import qrcode
+import requests
 from flask import Flask, flash, redirect, render_template, request, session, url_for, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -307,15 +306,11 @@ def build_qr_data_uri(allocation, user_name):
 
 
 def send_allocation_email(allocation, user_name, user_email):
-    # Enforce real SMTP
-    username = os.getenv("SMART_HOSTEL_MAIL_USERNAME")
-    password = os.getenv("SMART_HOSTEL_MAIL_PASSWORD")
-    sender = os.getenv("SMART_HOSTEL_MAIL_FROM", username or "SmartHostel AI")
-    smtp_server = os.getenv("SMART_HOSTEL_SMTP_SERVER", "smtp.gmail.com")
-    smtp_port = int(os.getenv("SMART_HOSTEL_SMTP_PORT", "587"))
+    api_key = os.getenv("SMART_HOSTEL_RESEND_API_KEY") or os.getenv("RESEND_API_KEY")
+    sender = os.getenv("SMART_HOSTEL_MAIL_FROM", "SmartHostel AI <onboarding@resend.dev>")
 
-    if not username or not password:
-        return {"sent": False, "reason": "SMTP App Password not configured in environment"}
+    if not api_key:
+        return {"sent": False, "reason": "Resend API key not configured in environment"}
 
     subject = "Room Allocation - SmartHostelAI"
     body = (
@@ -330,28 +325,43 @@ def send_allocation_email(allocation, user_name, user_email):
         "SmartHostelAI"
     )
 
-    message = EmailMessage()
-    message["Subject"] = subject
-    message["From"] = sender
-    message["To"] = user_email
-    message.set_content(body)
-    message.add_attachment(
-        build_qr_png(allocation, user_name),
-        maintype="image",
-        subtype="png",
-        filename=f"{allocation['pass_id']}_QR_Pass.png",
-    )
+    attachment_name = f"{allocation['pass_id']}_QR_Pass.png"
+    attachment_content = base64.b64encode(build_qr_png(allocation, user_name)).decode("ascii")
+    payload = {
+        "from": sender,
+        "to": [user_email],
+        "subject": subject,
+        "text": body,
+        "attachments": [
+            {
+                "filename": attachment_name,
+                "content": attachment_content,
+            }
+        ],
+    }
 
     try:
-        with smtplib.SMTP(smtp_server, smtp_port, timeout=15) as smtp:
-            smtp.starttls()
-            smtp.login(username, password)
-            smtp.send_message(message)
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=15,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        error_detail = str(exc)
+        if getattr(exc, "response", None) is not None:
+            error_detail = exc.response.text or error_detail
+        print(f"Resend Error: {error_detail}")
+        return {"sent": False, "reason": error_detail}
     except Exception as exc:
-        print(f"SMTP Error: {exc}")
+        print(f"Email Error: {exc}")
         return {"sent": False, "reason": str(exc)}
 
-    return {"sent": True, "reason": "Email sent"}
+    return {"sent": True, "reason": "Email sent via Resend"}
 
 
 def build_whatsapp_allocation_message(allocation, user_name):
