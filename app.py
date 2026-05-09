@@ -1,14 +1,16 @@
 import base64
 from datetime import datetime
 from functools import wraps
+import html
 from io import BytesIO
+import json
 import os
 import sqlite3
 import urllib.parse
 import urllib.request
+import urllib.error
 
 import qrcode
-import requests
 from flask import Flask, flash, redirect, render_template, request, session, url_for, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -290,6 +292,54 @@ def build_qr_payload(allocation, user_name):
     )
 
 
+def build_allocation_email_body(allocation, user_name):
+    return (
+        f"Hello {user_name},\n\n"
+        "Your hostel room has been successfully allocated.\n\n"
+        f"Room: {allocation['block']}-{allocation['room_number']}\n"
+        f"Floor: {allocation['floor']}\n"
+        f"Room Type: {allocation['type']}\n"
+        f"Pass ID: {allocation['pass_id']}\n"
+        f"Allocated At: {allocation['allocated_at']}\n\n"
+        "You can now log in to view details and access your QR pass.\n\n"
+        "This is an automated SmartHostelAI message.\n"
+    )
+
+
+def build_allocation_email_html(allocation, user_name):
+    safe_name = html.escape(str(user_name))
+    room_label = html.escape(f"{allocation['block']}-{allocation['room_number']}")
+    floor = html.escape(str(allocation["floor"]))
+    room_type = html.escape(str(allocation["type"]))
+    pass_id = html.escape(str(allocation["pass_id"]))
+    allocated_at = html.escape(str(allocation["allocated_at"]))
+    return f"""
+    <div style="margin:0;padding:0;background:#f6f7fb;font-family:Inter,Arial,sans-serif;color:#111827;">
+      <div style="max-width:640px;margin:0 auto;padding:32px 20px;">
+        <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;">
+          <div style="padding:28px 30px;background:#111827;color:#ffffff;">
+            <div style="font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#c4b5fd;font-weight:700;">SmartHostelAI</div>
+            <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;">Room allocation confirmed</h1>
+          </div>
+          <div style="padding:30px;">
+            <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Hello {safe_name},</p>
+            <p style="margin:0 0 24px;font-size:16px;line-height:1.6;">Your hostel room has been successfully allocated. Your QR pass is attached to this email.</p>
+            <table style="width:100%;border-collapse:collapse;margin:0 0 26px;">
+              <tr><td style="padding:12px;border-bottom:1px solid #eef2f7;color:#6b7280;">Room</td><td style="padding:12px;border-bottom:1px solid #eef2f7;font-weight:700;">{room_label}</td></tr>
+              <tr><td style="padding:12px;border-bottom:1px solid #eef2f7;color:#6b7280;">Floor</td><td style="padding:12px;border-bottom:1px solid #eef2f7;font-weight:700;">{floor}</td></tr>
+              <tr><td style="padding:12px;border-bottom:1px solid #eef2f7;color:#6b7280;">Room Type</td><td style="padding:12px;border-bottom:1px solid #eef2f7;font-weight:700;">{room_type}</td></tr>
+              <tr><td style="padding:12px;border-bottom:1px solid #eef2f7;color:#6b7280;">Pass ID</td><td style="padding:12px;border-bottom:1px solid #eef2f7;font-weight:700;">{pass_id}</td></tr>
+              <tr><td style="padding:12px;color:#6b7280;">Allocated At</td><td style="padding:12px;font-weight:700;">{allocated_at}</td></tr>
+            </table>
+            <a href="{os.getenv('SMART_HOSTEL_APP_URL', '#')}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:13px 18px;border-radius:999px;font-weight:700;">Login to SmartHostelAI</a>
+            <p style="margin:26px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">Need help? Contact your hostel office and share your Pass ID. This is an automated message.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+
+
 def build_qr_png(allocation, user_name):
     qr = qrcode.QRCode(box_size=8, border=2)
     qr.add_data(build_qr_payload(allocation, user_name))
@@ -305,6 +355,14 @@ def build_qr_data_uri(allocation, user_name):
     return f"data:image/png;base64,{encoded}"
 
 
+def build_qr_attachment(allocation, user_name):
+    qr_png = build_qr_png(allocation, user_name)
+    return {
+        "filename": f"{allocation['pass_id']}_QR_Pass.png",
+        "content": base64.b64encode(qr_png).decode("ascii"),
+    }
+
+
 def send_allocation_email(allocation, user_name, user_email):
     api_key = os.getenv("SMART_HOSTEL_RESEND_API_KEY") or os.getenv("RESEND_API_KEY")
     sender = os.getenv("SMART_HOSTEL_MAIL_FROM", "SmartHostel AI <onboarding@resend.dev>")
@@ -313,55 +371,45 @@ def send_allocation_email(allocation, user_name, user_email):
         return {"sent": False, "reason": "Resend API key not configured in environment"}
 
     subject = "Room Allocation - SmartHostelAI"
-    body = (
-        f"Hello {user_name},\n\n"
-        "Your hostel room has been successfully allocated.\n\n"
-        f"Room: {allocation['block']}-{allocation['room_number']}\n"
-        f"Floor: {allocation['floor']}\n"
-        f"Room Type: {allocation['type']}\n"
-        f"Pass ID: {allocation['pass_id']}\n\n"
-        "You can now log in to view details and access your QR pass.\n\n"
-        "Thank you,\n"
-        "SmartHostelAI"
-    )
+    body = build_allocation_email_body(allocation, user_name)
 
-    attachment_name = f"{allocation['pass_id']}_QR_Pass.png"
-    attachment_content = base64.b64encode(build_qr_png(allocation, user_name)).decode("ascii")
+    qr_attachment = build_qr_attachment(allocation, user_name)
     payload = {
         "from": sender,
         "to": [user_email],
         "subject": subject,
         "text": body,
-        "attachments": [
-            {
-                "filename": attachment_name,
-                "content": attachment_content,
-            }
-        ],
+        "html": build_allocation_email_html(allocation, user_name),
+        "attachments": [qr_attachment],
     }
 
     try:
-        response = requests.post(
+        request_payload = json.dumps(payload).encode("utf-8")
+        resend_request = urllib.request.Request(
             "https://api.resend.com/emails",
+            data=request_payload,
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
+                "User-Agent": "SmartHostelAI/1.0",
             },
-            json=payload,
-            timeout=15,
+            method="POST",
         )
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        error_detail = str(exc)
-        if getattr(exc, "response", None) is not None:
-            error_detail = exc.response.text or error_detail
+        with urllib.request.urlopen(resend_request, timeout=15) as response:
+            response_body = response.read().decode("utf-8", errors="replace")
+            response_data = json.loads(response_body) if response_body else {}
+    except urllib.error.HTTPError as exc:
+        error_detail = exc.read().decode("utf-8", errors="replace") or str(exc)
         print(f"Resend Error: {error_detail}")
         return {"sent": False, "reason": error_detail}
+    except urllib.error.URLError as exc:
+        print(f"Resend Error: {exc}")
+        return {"sent": False, "reason": str(exc)}
     except Exception as exc:
         print(f"Email Error: {exc}")
         return {"sent": False, "reason": str(exc)}
 
-    return {"sent": True, "reason": "Email sent via Resend"}
+    return {"sent": True, "reason": "Email sent via Resend", "provider": "resend", "message_id": response_data.get("id", "")}
 
 
 def build_whatsapp_allocation_message(allocation, user_name):
@@ -405,6 +453,11 @@ def send_whatsapp_message(student_email, phone, message):
 
     log_notification(student_email, "WhatsApp", phone, message, "Sent", "twilio")
     return {"sent": True, "provider": "twilio", "reason": "WhatsApp sent"}
+
+
+def can_admin_manage_student(admin_email, student_gender):
+    admin_scope = get_admin_scope(admin_email)
+    return not admin_scope["gender"] or admin_scope["gender"] == student_gender
 
 
 @app.route("/")
@@ -536,6 +589,16 @@ def admin_dashboard():
                 WHERE c.status = 'Open' AND s.gender = ?
                 ORDER BY c.id DESC
             """, (admin_scope["gender"],)).fetchall()
+            allocations = db.execute("""
+                SELECT a.id, a.student_email, a.pass_id, a.allocated_at, u.name, s.gender, r.block, r.floor, r.room_number, r.type
+                FROM allocations a
+                JOIN users u ON a.student_email = u.email
+                JOIN students s ON a.student_email = s.email
+                JOIN rooms r ON a.room_id = r.id
+                WHERE s.gender = ?
+                ORDER BY a.id DESC
+                LIMIT 8
+            """, (admin_scope["gender"],)).fetchall()
         else:
             rooms = db.execute("SELECT * FROM rooms").fetchall()
             students_count = db.execute("SELECT COUNT(*) FROM students").fetchone()[0]
@@ -547,6 +610,15 @@ def admin_dashboard():
                 WHERE r.status = 'Pending'
             """).fetchall()
             open_complaints = db.execute("SELECT * FROM complaints WHERE status = 'Open' ORDER BY id DESC").fetchall()
+            allocations = db.execute("""
+                SELECT a.id, a.student_email, a.pass_id, a.allocated_at, u.name, s.gender, r.block, r.floor, r.room_number, r.type
+                FROM allocations a
+                JOIN users u ON a.student_email = u.email
+                JOIN students s ON a.student_email = s.email
+                JOIN rooms r ON a.room_id = r.id
+                ORDER BY a.id DESC
+                LIMIT 8
+            """).fetchall()
 
         total_capacity = sum(r["capacity"] for r in rooms)
         occupied_beds = sum(r["occupied"] for r in rooms)
@@ -567,6 +639,7 @@ def admin_dashboard():
         full=full,
         maintenance=maintenance,
         room_requests=requests_query,
+        allocations=allocations,
         complaints=open_complaints,
         audit_logs=audit_logs,
         notification_logs=notification_logs,
@@ -577,6 +650,27 @@ def admin_dashboard():
             "open_complaints": len(open_complaints)
         }
     )
+
+
+@app.route("/student/qr-pass")
+@login_required("student")
+def download_qr_pass():
+    with get_db() as db:
+        allocation = db.execute("""
+            SELECT a.*, r.block, r.floor, r.room_number, r.type
+            FROM allocations a
+            JOIN rooms r ON a.room_id = r.id
+            WHERE a.student_email = ?
+        """, (session["user_email"],)).fetchone()
+
+    if not allocation:
+        flash("No active QR pass is available yet.", "warning")
+        return redirect(url_for("student_dashboard"))
+
+    qr_png = build_qr_png(dict(allocation), session["name"])
+    response = app.response_class(qr_png, mimetype="image/png")
+    response.headers["Content-Disposition"] = f"attachment; filename={allocation['pass_id']}_QR_Pass.png"
+    return response
 
 
 @app.route("/student")
@@ -804,6 +898,19 @@ def api_approve_request(req_id):
         }
         
         mail_status = send_allocation_email(allocation_dict, user["name"], req["student_email"])
+        mail_log_status = "Sent"
+        if mail_status.get("message_id"):
+            mail_log_status = f"Sent: {mail_status['message_id']}"
+        elif not mail_status["sent"]:
+            mail_log_status = f"Failed: {mail_status['reason']}"
+        log_notification(
+            req["student_email"],
+            "Email",
+            req["student_email"],
+            build_allocation_email_body(allocation_dict, user["name"]),
+            mail_log_status,
+            mail_status.get("provider", "resend"),
+        )
         whatsapp_message = build_whatsapp_allocation_message(allocation_dict, user["name"])
         whatsapp_status = send_whatsapp_message(req["student_email"], student["phone"], whatsapp_message)
         
@@ -826,6 +933,58 @@ def reject_request(req_id):
         db.commit()
     flash("Room request rejected.", "success")
     return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/resend-allocation-email/<int:allocation_id>", methods=["POST"])
+@login_required("admin")
+def resend_allocation_email(allocation_id):
+    with get_db() as db:
+        allocation = db.execute("""
+            SELECT a.*, u.name, s.gender, r.block, r.floor, r.room_number, r.type
+            FROM allocations a
+            JOIN users u ON a.student_email = u.email
+            JOIN students s ON a.student_email = s.email
+            JOIN rooms r ON a.room_id = r.id
+            WHERE a.id = ?
+        """, (allocation_id,)).fetchone()
+
+        if not allocation:
+            flash("Allocation not found.", "warning")
+            return redirect(url_for("admin_dashboard"))
+
+        if not can_admin_manage_student(session.get("user_email"), allocation["gender"]):
+            flash("This allocation belongs to another hostel block.", "danger")
+            return redirect(url_for("admin_dashboard"))
+
+        allocation_dict = {
+            "pass_id": allocation["pass_id"],
+            "block": allocation["block"],
+            "floor": allocation["floor"],
+            "room_number": allocation["room_number"],
+            "type": allocation["type"],
+            "allocated_at": allocation["allocated_at"],
+        }
+        mail_status = send_allocation_email(allocation_dict, allocation["name"], allocation["student_email"])
+        mail_log_status = "Resent"
+        if mail_status.get("message_id"):
+            mail_log_status = f"Resent: {mail_status['message_id']}"
+        elif not mail_status["sent"]:
+            mail_log_status = f"Failed: {mail_status['reason']}"
+        log_notification(
+            allocation["student_email"],
+            "Email",
+            allocation["student_email"],
+            build_allocation_email_body(allocation_dict, allocation["name"]),
+            mail_log_status,
+            mail_status.get("provider", "resend"),
+        )
+
+    if mail_status["sent"]:
+        flash("Allocation email resent with a fresh QR pass attachment.", "success")
+    else:
+        flash(f"Could not resend allocation email: {mail_status['reason']}", "warning")
+    return redirect(url_for("admin_dashboard"))
+
 
 @app.route("/admin/broadcast", methods=["POST"])
 @login_required("admin")

@@ -12,7 +12,7 @@
 * **Jinja2**: Templating engine for rendering dynamic HTML with loops and conditionals.
 * **SQLite3**: Built-in relational database for storing users, rooms, requests, and logs.
 * **Werkzeug.security**: Cryptographic hashing (`generate_password_hash`, `check_password_hash`) for safe password storage.
-* **Resend / requests**: HTTP API email dispatch for allocation notifications with QR pass attachments.
+* **Resend / urllib**: HTTP API email dispatch for allocation notifications with QR pass attachments.
 * **qrcode**: Library for generating 2D QR codes securely.
 * **base64 & BytesIO**: Encoding generated QR codes natively into Data URIs to serve over HTML without file saving.
 * **datetime**: Handling timestamping for audit logs, DOB constraints, and pass ID generation.

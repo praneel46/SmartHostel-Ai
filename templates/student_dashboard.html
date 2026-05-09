@@ -17,13 +17,13 @@
             <h2 class="h4 mb-4 text-primary fw-bold">Room Allocation Active</h2>
             <div class="d-flex flex-column align-items-center justify-content-center">
               <div class="p-3 bg-white rounded shadow-sm mb-4">
-                <!-- STATIC QR Code -->
                 <img src="{{ qr_data_uri }}" alt="QR room pass" style="width: 180px; height: 180px;">
               </div>
               
               <h3 class="h5 fw-bold mb-1">Pass ID: {{ allocation.pass_id }}</h3>
               <p class="mb-2 fs-5">Room <strong class="text-primary">{{ allocation.block }}-{{ allocation.room_number }}</strong> ({{ allocation.type }})</p>
               <p class="text-muted small">Allocated: {{ allocation.allocated_at }}</p>
+              <a href="{{ url_for('download_qr_pass') }}" class="btn btn-premium btn-premium-primary mt-3">Download QR Pass</a>
             </div>
           {% else %}
             <div class="py-4">

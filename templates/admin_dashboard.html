@@ -124,6 +124,36 @@
       </div>
     </div>
 
+    <div class="row g-4 mb-5">
+      <div class="col-12 reveal">
+        <div class="glass-panel p-4">
+          <h2 class="h4 fw-bold mb-4">Active Allocations</h2>
+          <div class="table-responsive">
+            <table class="table table-premium align-middle mb-0">
+              <thead><tr><th>Student</th><th>Room</th><th>Pass ID</th><th>Allocated</th><th>Action</th></tr></thead>
+              <tbody>
+                {% for allocation in allocations %}
+                  <tr>
+                    <td><strong>{{ allocation.name }}</strong><br><small class="text-muted">{{ allocation.student_email }}</small></td>
+                    <td>Block {{ allocation.block }}, Room {{ allocation.room_number }}<br><small class="text-muted">{{ allocation.type }} | Floor {{ allocation.floor }}</small></td>
+                    <td>{{ allocation.pass_id }}</td>
+                    <td>{{ allocation.allocated_at }}</td>
+                    <td>
+                      <form method="post" action="{{ url_for('resend_allocation_email', allocation_id=allocation.id) }}">
+                        <button class="btn btn-sm btn-premium btn-premium-primary" type="submit">Resend Email</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="5" class="text-muted text-center py-4">No active allocations yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Sequence 5 & 6: Notice Upload & Audit Trail -->
     <div class="row g-4 mb-5" style="position: relative; z-index: 10;">
       <div class="col-lg-6 reveal" id="notice-upload">
