@@ -10,6 +10,11 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
+
 import qrcode
 from flask import Flask, flash, redirect, render_template, request, session, url_for, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -386,21 +391,56 @@ def is_resend_configured():
 
 def send_allocation_email(allocation, user_name, user_email):
     api_key = get_resend_api_key()
+    smtp_pass = os.getenv("SMTP_PASSWORD")
     sender = os.getenv("SMART_HOSTEL_MAIL_FROM", "SmartHostel AI <onboarding@resend.dev>")
 
-    if not api_key:
-        return {"sent": False, "provider": "resend", "reason": "Set RESEND_API_KEY in Render environment variables"}
+    if not api_key and not smtp_pass:
+        return {"sent": False, "provider": "none", "reason": "Set RESEND_API_KEY or SMTP_PASSWORD in environment variables"}
 
     subject = "Room Allocation - SmartHostelAI"
     body = build_allocation_email_body(allocation, user_name)
+    html_body = build_allocation_email_html(allocation, user_name)
+    
+    if smtp_pass:
+        # Use SMTP
+        smtp_user = os.getenv("SMTP_USER", sender)
+        smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = int(os.getenv("SMTP_PORT", "465"))
+        
+        msg = MIMEMultipart()
+        msg['Subject'] = subject
+        msg['From'] = sender if ' ' not in sender else f"{sender.split('<')[0].strip()} <{smtp_user}>"
+        msg['To'] = user_email
+        
+        msg.attach(MIMEText(body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
+        
+        qr_png = build_qr_png(allocation, user_name)
+        img = MIMEImage(qr_png, name=f"{allocation['pass_id']}_QR_Pass.png")
+        msg.attach(img)
+        
+        try:
+            if smtp_port == 465:
+                server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+            else:
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+            server.quit()
+            return {"sent": True, "reason": "Email sent via SMTP", "provider": "smtp", "message_id": "smtp-success"}
+        except Exception as exc:
+            print(f"SMTP Error: {exc}")
+            return {"sent": False, "provider": "smtp", "reason": str(exc)}
 
+    # Fallback to Resend API
     qr_attachment = build_qr_attachment(allocation, user_name)
     payload = {
         "from": sender,
         "to": [user_email],
         "subject": subject,
         "text": body,
-        "html": build_allocation_email_html(allocation, user_name),
+        "html": html_body,
         "attachments": [qr_attachment],
     }
 
@@ -422,13 +462,13 @@ def send_allocation_email(allocation, user_name, user_email):
     except urllib.error.HTTPError as exc:
         error_detail = exc.read().decode("utf-8", errors="replace") or str(exc)
         print(f"Resend Error: {error_detail}")
-        return {"sent": False, "reason": error_detail}
+        return {"sent": False, "provider": "resend", "reason": error_detail}
     except urllib.error.URLError as exc:
         print(f"Resend Error: {exc}")
-        return {"sent": False, "reason": str(exc)}
+        return {"sent": False, "provider": "resend", "reason": str(exc)}
     except Exception as exc:
         print(f"Email Error: {exc}")
-        return {"sent": False, "reason": str(exc)}
+        return {"sent": False, "provider": "resend", "reason": str(exc)}
 
     return {"sent": True, "reason": "Email sent via Resend", "provider": "resend", "message_id": response_data.get("id", "")}
 
@@ -595,7 +635,7 @@ def admin_dashboard():
 
         if block_filter:
             rooms = db.execute("SELECT * FROM rooms WHERE block = ?", (block_filter,)).fetchall()
-            students_count = db.execute("SELECT COUNT(*) FROM students WHERE gender = ?", (admin_scope["gender"],)).fetchone()[0]
+            students_count = db.execute("SELECT COUNT(*) FROM allocations a JOIN students s ON a.student_email = s.email WHERE s.gender = ?", (admin_scope["gender"],)).fetchone()[0]
             requests_query = db.execute("""
                 SELECT r.*, u.name, s.gender, s.phone
                 FROM requests r 
@@ -621,7 +661,7 @@ def admin_dashboard():
             """, (admin_scope["gender"],)).fetchall()
         else:
             rooms = db.execute("SELECT * FROM rooms").fetchall()
-            students_count = db.execute("SELECT COUNT(*) FROM students").fetchone()[0]
+            students_count = db.execute("SELECT COUNT(*) FROM allocations").fetchone()[0]
             requests_query = db.execute("""
                 SELECT r.*, u.name, s.gender, s.phone
                 FROM requests r 
@@ -642,7 +682,7 @@ def admin_dashboard():
 
         total_capacity = sum(r["capacity"] for r in rooms)
         occupied_beds = sum(r["occupied"] for r in rooms)
-        occupancy_rate = int((occupied_beds / total_capacity * 100)) if total_capacity else 0
+        occupancy_rate = round((occupied_beds / total_capacity * 100), 1) if total_capacity else 0
         
         available = sum(1 for r in rooms if r["status"] == "Available")
         full = sum(1 for r in rooms if r["status"] == "Full")
@@ -654,23 +694,35 @@ def admin_dashboard():
         if notification_filter not in allowed_filters:
             notification_filter = "All"
 
-        notification_sql = "SELECT * FROM notification_logs WHERE NOT (channel = ? AND provider = ?)"
+        notification_sql = """
+            SELECT n.* 
+            FROM notification_logs n
+            LEFT JOIN students s ON n.student_email = s.email
+            WHERE NOT (n.channel = ? AND n.provider = ?)
+        """
         notification_params = ["WhatsApp", "mock"]
+        
+        if block_filter:
+            notification_sql += " AND s.gender = ?"
+            notification_params.append(admin_scope["gender"])
+
         notification_conditions = []
         notification_extra_params = []
         if notification_filter == "Email":
-            notification_conditions.append("channel = ?")
+            notification_conditions.append("n.channel = ?")
             notification_extra_params.append(notification_filter)
         elif notification_filter == "Failed":
-            notification_conditions.append("status LIKE ?")
+            notification_conditions.append("n.status LIKE ?")
             notification_extra_params.append("Failed%")
         elif notification_filter == "Sent":
-            notification_conditions.append("(status LIKE ? OR status LIKE ?)")
+            notification_conditions.append("(n.status LIKE ? OR n.status LIKE ?)")
             notification_extra_params.extend(["Sent%", "Resent%"])
+            
         if notification_conditions:
             notification_sql += " AND " + " AND ".join(notification_conditions)
+            
         notification_params.extend(notification_extra_params)
-        notification_sql += " ORDER BY id DESC LIMIT 8"
+        notification_sql += " ORDER BY n.id DESC LIMIT 8"
         notification_logs = db.execute(notification_sql, notification_params).fetchall()
 
     return render_template(
@@ -686,7 +738,7 @@ def admin_dashboard():
         audit_logs=audit_logs,
         notification_logs=notification_logs,
         notification_filter=notification_filter,
-        mail_configured=is_resend_configured(),
+        mail_configured=is_resend_configured() or bool(os.getenv("SMTP_PASSWORD")),
         analytics={
             "occupancy_rate": occupancy_rate,
             "total_students": students_count,

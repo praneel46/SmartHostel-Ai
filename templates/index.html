@@ -64,4 +64,76 @@
   </div>
 </section>
 
+<!-- Glassmorphic Contact Reveal Section -->
+<section class="contact-section" id="contact" style="padding: 100px 0; overflow: hidden; position: relative;">
+  <div class="container position-relative z-index-1">
+    <div class="row justify-content-center">
+      <div class="col-lg-10">
+        <div class="feature-card text-center p-5 reveal-contact" style="transform: translateY(50px); opacity: 0; transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);">
+          <div class="glow-accent" style="position: absolute; top: -50%; left: 50%; transform: translateX(-50%); width: 200px; height: 200px; background: radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%); filter: blur(40px); pointer-events: none;"></div>
+          
+          <p class="text-uppercase tracking-wide fw-bold mb-2" style="color: var(--primary); letter-spacing: 0.15em; font-size: 0.85rem;">Get in Touch</p>
+          <h2 class="display-5 fw-bold mb-4" style="color: var(--text);">We are here to help.</h2>
+          <p class="lead mb-5" style="color: var(--text-light);">Have questions about the SmartHostelAI platform? Reach out to our team directly.</p>
+          
+          <div class="d-flex flex-column flex-md-row justify-content-center gap-4">
+            <a href="tel:8660276040" class="contact-card feature-card text-decoration-none" style="flex: 1; padding: 2rem !important; border-radius: var(--radius-lg);">
+              <div class="icon-wrapper mb-3 mx-auto d-flex align-items-center justify-content-center rounded-circle" style="width: 60px; height: 60px; background: rgba(139, 92, 246, 0.1); color: var(--primary);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-telephone-fill" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M1.885.511a1.745 1.745 0 0 1 2.61.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877z"/>
+                </svg>
+              </div>
+              <h4 class="h5 fw-bold mb-1" style="color: var(--text);">Call Us</h4>
+              <p class="text-muted mb-0" style="color: var(--text-light) !important;">8660276040</p>
+            </a>
+            
+            <a href="mailto:smarthostelai@gmail.com" class="contact-card feature-card text-decoration-none" style="flex: 1; padding: 2rem !important; border-radius: var(--radius-lg);">
+              <div class="icon-wrapper mb-3 mx-auto d-flex align-items-center justify-content-center rounded-circle" style="width: 60px; height: 60px; background: rgba(139, 92, 246, 0.1); color: var(--primary);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-envelope-fill" viewBox="0 0 16 16">
+                  <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414zM0 4.697v7.104l5.803-3.558zM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586zm3.436-.586L16 11.801V4.697z"/>
+                </svg>
+              </div>
+              <h4 class="h5 fw-bold mb-1" style="color: var(--text);">Email Us</h4>
+              <p class="text-muted mb-0" style="color: var(--text-light) !important;">smarthostelai@gmail.com</p>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Custom JS for Contact Hover Effects and ScrollReveal -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // GSAP ScrollTrigger for Contact Section Reveal
+    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+      gsap.to(".reveal-contact", {
+        scrollTrigger: {
+          trigger: ".contact-section",
+          start: "top 85%", // Trigger when top of section is 85% down viewport
+          toggleActions: "play none none reverse"
+        },
+        y: 0,
+        opacity: 1,
+        duration: 1,
+        ease: "power3.out"
+      });
+    } else {
+      // Fallback if GSAP is not loaded
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.style.opacity = '1';
+            entry.target.style.transform = 'translateY(0)';
+          }
+        });
+      }, { threshold: 0.1 });
+      
+      const panel = document.querySelector('.reveal-contact');
+      if (panel) observer.observe(panel);
+    }
+  });
+</script>
+
 {% endblock %}
