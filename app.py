@@ -21,7 +21,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 
 def load_local_env():
-    env_path = ".env"
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
     if not os.path.exists(env_path):
         return
     with open(env_path, "r", encoding="utf-8") as env_file:
@@ -30,7 +30,7 @@ def load_local_env():
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, value = line.split("=", 1)
-            os.environ.setdefault(key.strip(), value.strip())
+            os.environ[key.strip()] = value.strip()
 
 
 load_local_env()
@@ -382,7 +382,8 @@ def build_qr_attachment(allocation, user_name):
 
 
 def get_resend_api_key():
-    return os.getenv("SMART_HOSTEL_RESEND_API_KEY") or os.getenv("RESEND_API_KEY")
+    key = os.getenv("SMART_HOSTEL_RESEND_API_KEY") or os.getenv("RESEND_API_KEY")
+    return key.strip() if key else None
 
 
 def is_resend_configured():
